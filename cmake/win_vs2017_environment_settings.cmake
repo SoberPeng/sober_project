@@ -14,10 +14,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 ##1. INCLUDE_DIRECTORES
 SET(VZPROJECT_INCLUDE_DIR
 	${PROJECT_SOURCE_DIR}/src/lib
-  ${PROJECT_SOURCE_DIR}/src/third_part
-  ${PROJECT_SOURCE_DIR}/src/third_part/boost
-
-	)
+	${PROJECT_SOURCE_DIR}/src/third_part
+	${PROJECT_SOURCE_DIR}/src/third_part/boost
+)
 
 MESSAGE(STATUS "       Add library path and name")
 if(CMAKE_BUILD_TYPE MATCHES Debug)

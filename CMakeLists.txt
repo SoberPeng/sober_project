@@ -3,7 +3,7 @@
 #STS=OFF -DJSONCPP_WITH_POST_BUILD_UNITTEST=OFF
 #  
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-PROJECT(proxy_server)
+PROJECT(device_server)
 set_property(GLOBAL PROPERTY USE_FOLDERS On)
 
 MESSAGE(STATUS "01*********************************************************")
@@ -52,6 +52,10 @@ ADD_SUBDIRECTORY(src/lib/app)
 # Third part
 ADD_SUBDIRECTORY(src/third_part/json)
 ADD_SUBDIRECTORY(src/third_part/encode)
+
+# RUN
+ADD_SUBDIRECTORY(src/run/appstarup)
+ADD_SUBDIRECTORY(src/run/memoryleak)
 
 # TEST
 #ADD_SUBDIRECTORY(src/test/thead_test)
