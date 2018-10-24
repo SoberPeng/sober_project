@@ -17,8 +17,7 @@
 #undef delete
 
 #ifndef NDEBUG
-void dbgout(const char* fmt, ...)
-{
+void dbgout(const char* fmt, ...) {
   char str[4096];
 
   va_list v;
@@ -59,8 +58,7 @@ void dbgout(const char* fmt, ...)
  * since C++ was born but most people don't seem to know or care.
  */
 
-struct alloc_node
-{
+struct alloc_node {
   alloc_node* lptr;
   alloc_node* rptr;
   size_t      len;
@@ -72,19 +70,16 @@ static alloc_node* g_heap = NULL;
 static alloc_node* g_vector_heap = NULL;
 
 // Our magic guard unsigned chars
-static unsigned char g_guard[] =
-{
-    0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
-    0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
+static unsigned char g_guard[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF,
+  0xDE, 0xAD, 0xBE, 0xEF, 0xDE, 0xAD, 0xBE, 0xEF
 };
 
-void* operator new(size_t n, char *file, int line)
-{
+void* operator new(size_t n, char *file, int line) {
   unsigned char* pmem = NULL;
   if (!n) n = 1;/**/
   alloc_node* pnode = (alloc_node*)malloc(n + 2 * sizeof(g_guard) + sizeof(alloc_node));
-  if (pnode)
-  {
+  if (pnode) {
     pmem = (unsigned char*)pnode + sizeof(alloc_node) + sizeof(g_guard);
     memcpy(pmem - sizeof(g_guard), g_guard, sizeof(g_guard));
     memset(pmem, time(NULL), n);
@@ -97,38 +92,31 @@ void* operator new(size_t n, char *file, int line)
     alloc_node** ppuplink = &g_heap;
     alloc_node* pcur = g_heap;
 
-    while (pcur)
-    {
-      if (pnode == pcur)
-      {
+    while (pcur) {
+      if (pnode == pcur) {
         dbgout("*** FATAL: duplicate memory allocated ***");
         assert(false);
         exit(-1);
       }
-      if (pnode < pcur)
-      {
+      if (pnode < pcur) {
         ppuplink = &pcur->lptr;
         pcur = pcur->lptr;
-      }
-      else
-      {
+      } else {
         ppuplink = &pcur->rptr;
         pcur = pcur->rptr;
       }
     }
     *ppuplink = pnode;
   }
-
+  dbgout("new 0x%x.", pmem);
   return pmem;
 }
 
-void* operator new[](size_t n, char *file, int line)
-{
+void* operator new[](size_t n, char *file, int line) {
   unsigned char* pmem = NULL;
   if (!n) n = 1;
   alloc_node* pnode = (alloc_node*)malloc(n + 2 * sizeof(g_guard) + sizeof(alloc_node));
-  if (pnode)
-  {
+  if (pnode) {
     pmem = (unsigned char*)pnode + sizeof(alloc_node) + sizeof(g_guard);
     memcpy(pmem - sizeof(g_guard), g_guard, sizeof(g_guard));
     memset(pmem, time(NULL), n);
@@ -140,36 +128,31 @@ void* operator new[](size_t n, char *file, int line)
     pnode->line = line;
     alloc_node** ppuplink = &g_vector_heap;
     alloc_node* pcur = g_vector_heap;
-    while (pcur)
-    {
-      if (pnode == pcur)
-      {
+    while (pcur) {
+      if (pnode == pcur) {
         dbgout("*** FATAL: duplicate memory allocated ***");
         assert(false);
         exit(-1);
       }
-      if (pnode < pcur)
-      {
+      if (pnode < pcur) {
         ppuplink = &pcur->lptr;
         pcur = pcur->lptr;
-      }
-      else
-      {
+      } else {
         ppuplink = &pcur->rptr;
         pcur = pcur->rptr;
       }
     }
     *ppuplink = pnode;
   }
-
+  dbgout("new 0x%x.", pmem);
   return pmem;
 }
 
-void operator delete(void* p)
-{
-  if (!p) return;
-  if (!g_heap)
-  {
+void operator delete(void* p) {
+  dbgout("free 0x%x.", p);
+  if (!p)
+    return;
+  if (!g_heap) {
     dbgout("*** FATAL: delete with empty heap ***");
     assert(false);
     exit(-1);
@@ -177,45 +160,36 @@ void operator delete(void* p)
 
   alloc_node* pcur = g_heap;
   alloc_node** ppuplink = &g_heap;
-  while (pcur)
-  {
+  while (pcur) {
     void* pcurblk = (char*)pcur + sizeof(alloc_node) + sizeof(g_guard);
-    if (p == pcurblk)
-    {
+    if (p == pcurblk) {
       unsigned char* pmem = (unsigned char*)p;
 
       if (memcmp(pmem - sizeof(g_guard), g_guard, sizeof(g_guard)) != 0 ||
-        memcmp(pmem + pcur->len, g_guard, sizeof(g_guard)) != 0)
-      {
+          memcmp(pmem + pcur->len, g_guard, sizeof(g_guard)) != 0) {
         dbgout("*** FATAL: corrupted memory at %08X", p);
         assert(false);
         exit(-1);
       }
       memset(pmem, time(NULL), pcur->len);
-      if (pcur->lptr && pcur->rptr)
-      {
-        // node has both ptrs so replace it with left child and move   
-        // right child to bottom right of left child's tree   
+      if (pcur->lptr && pcur->rptr) {
+        // node has both ptrs so replace it with left child and move
+        // right child to bottom right of left child's tree
         alloc_node* pend = pcur->lptr;
         while (pend->rptr) pend = pend->rptr;
         *ppuplink = pcur->lptr;
         pend->rptr = pcur->rptr;
-      }
-      else
-      {
-        // move child up   
+      } else {
+        // move child up
         *ppuplink = (pcur->lptr) ? pcur->lptr : pcur->rptr;
       }
       free(pcur);
       return;
     }
-    if (p < pcurblk)
-    {
+    if (p < pcurblk) {
       ppuplink = &pcur->lptr;
       pcur = pcur->lptr;
-    }
-    else
-    {
+    } else {
       ppuplink = &pcur->rptr;
       pcur = pcur->rptr;
     }
@@ -226,11 +200,11 @@ void operator delete(void* p)
   exit(-1);
 }
 
-void operator delete[](void* p)
-{
-  if (!p) return;
-  if (!g_vector_heap)
-  {
+void operator delete[](void* p) {
+  dbgout("free 0x%x.", p);
+  if (!p) 
+    return;
+  if (!g_vector_heap) {
     dbgout("*** FATAL: delete with empty heap ***");
     assert(false);
     exit(-1);
@@ -238,44 +212,36 @@ void operator delete[](void* p)
 
   alloc_node* pcur = g_vector_heap;
   alloc_node** ppuplink = &g_vector_heap;
-  while (pcur)
-  {
+  while (pcur) {
     void* pcurblk = (char*)pcur + sizeof(alloc_node) + sizeof(g_guard);
-    if (p == pcurblk)
-    {
+    if (p == pcurblk) {
       unsigned char* pmem = (unsigned char*)p;
       if (memcmp(pmem - sizeof(g_guard), g_guard, sizeof(g_guard)) != 0 ||
-        memcmp(pmem + pcur->len, g_guard, sizeof(g_guard)) != 0)
-      {
+          memcmp(pmem + pcur->len, g_guard, sizeof(g_guard)) != 0) {
         dbgout("*** FATAL: corrupted memory at %08X", p);
         assert(false);
         exit(-1);
       }
       memset(pmem, time(NULL), pcur->len);
-      if (pcur->lptr && pcur->rptr)
-      {
-        // node has both ptrs so replace it with left child and move   
-        // right child to bottom right of left child's tree   
+      if (pcur->lptr && pcur->rptr) {
+        // node has both ptrs so replace it with left child and move
+        // right child to bottom right of left child's tree
         alloc_node* pend = pcur->lptr;
-        while (pend->rptr) pend = pend->rptr;
+        while (pend->rptr) 
+          pend = pend->rptr;
         *ppuplink = pcur->lptr;
         pend->rptr = pcur->rptr;
-      }
-      else
-      {
-        // move child up   
+      } else {
+        // move child up
         *ppuplink = (pcur->lptr) ? pcur->lptr : pcur->rptr;
       }
       free(pcur);
       return;
     }
-    if (p < pcurblk)
-    {
+    if (p < pcurblk) {
       ppuplink = &pcur->lptr;
       pcur = pcur->lptr;
-    }
-    else
-    {
+    } else {
       ppuplink = &pcur->rptr;
       pcur = pcur->rptr;
     }
@@ -286,46 +252,38 @@ void operator delete[](void* p)
   exit(-1);
 }
 
-void* operator new(size_t n)
-{
+void* operator new(size_t n) {
   return ::operator new(n, "(unknown)", 0);
 }
 
-void* operator new[](size_t n)
-{
+void* operator new[](size_t n) {
   return ::operator new[](n, "(unknown)", 0);
 }
 
-static void walk_alloc_tree(alloc_node* pcur, size_t* pttl)
-{
-  if (pcur)
-  {
+static void walk_alloc_tree(alloc_node* pcur, size_t* pttl) {
+  if (pcur) {
     walk_alloc_tree(pcur->lptr, pttl);
     dbgout("%s(%u): %u unsigned chars at %08X", pcur->file, pcur->line,
-      pcur->len, (char*)pcur + sizeof(alloc_node));
+           pcur->len, (char*)pcur + sizeof(alloc_node));
     *pttl += pcur->len;
     walk_alloc_tree(pcur->rptr, pttl);
   }
 }
 
-void dump_alloc_heaps(void)
-{
-  if (g_heap || g_vector_heap)
-  {
+void dump_alloc_heaps(void) {
+  if (g_heap || g_vector_heap) {
     size_t ttl = 0;
     dbgout("Memory leaks detected");
     dbgout("=====================");
     dbgout("");
 
-    if (g_heap)
-    {
+    if (g_heap) {
       dbgout("Scalar objects");
       dbgout("--------------");
       walk_alloc_tree(g_heap, &ttl);
       dbgout("");
     }
-    if (g_vector_heap)
-    {
+    if (g_vector_heap) {
       dbgout("Vector objects");
       dbgout("--------------");
       walk_alloc_tree(g_vector_heap, &ttl);
@@ -338,4 +296,4 @@ void dump_alloc_heaps(void)
   }
 }
 
-#endif   
+#endif
